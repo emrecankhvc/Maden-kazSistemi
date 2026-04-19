@@ -1,16 +1,20 @@
 const { Pool } = require('pg');
 const WebSocket = require('ws');
+const express = require('express'); // HTTP için ekledik
+const app = express();
 
-// 1. PostgreSQL Bağlantı Ayarları
+app.use(express.json()); // Gelen JSON verilerini okumak için
+
+// 1. PostgreSQL Bağlantısı
 const pool = new Pool({
-  user: 'postgres',           // Varsayılan kullanıcı
+  user: 'postgres',
   host: 'localhost',
-  database: 'postgres',       // Varsayılan veritabanı
-  password: '1556',   // KURULUMDA KOYDUĞUN ŞİFREYİ BURAYA YAZ!
+  database: 'postgres',
+  password: '1556',
   port: 5432,
 });
 
-// 2. Tabloyu Oluştur (SQL Standartı)
+// 2. Tablo Kurulumu
 const setupDb = async () => {
   try {
     await pool.query(`
@@ -23,87 +27,57 @@ const setupDb = async () => {
     `);
     console.log("✅ PostgreSQL Tablosu Hazır!");
   } catch (err) {
-    console.error("❌ Veritabanı kurulum hatası:", err);
+    console.error("❌ Veritabanı hatası:", err);
   }
 };
 setupDb();
 
-const wss = new WebSocket.Server({ port: 5000 });
+// 3. HTTP ENDPOINT (ESP32/Wokwi Buraya Veri Gönderecek)
+app.post('/api/data', async (req, res) => {
+  const { metan, oksijen } = req.body;
+  console.log(`📡 ESP'den Veri Geldi -> Metan: ${metan}, Oksijen: ${oksijen}`);
+
+  try {
+    await pool.query("INSERT INTO maden_loglari (metan, oksijen) VALUES ($1, $2)", [metan, oksijen]);
+    
+    // Veriyi Dashboard'a (WebSocket) yönlendir
+    broadcast({ type: 'LIVE', metan, oksijen });
+    
+    res.status(201).send("Veri kaydedildi");
+  } catch (err) {
+    console.error("Kayıt Hatası:", err);
+    res.status(500).send("Hata oluştu");
+  }
+});
+
+// 4. WebSocket (Dashboard İçin)
+const wss = new WebSocket.Server({ noServer: true });
+
+function broadcast(data) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
+  });
+}
 
 wss.on('connection', async (ws) => {
   console.log('🚀 Dashboard bağlandı.');
-
-  // Sayfa açıldığında son 20 veriyi DB'den çekip gönder
   try {
     const res = await pool.query("SELECT * FROM maden_loglari ORDER BY id DESC LIMIT 20");
     ws.send(JSON.stringify({ type: 'HISTORY', data: res.rows.reverse() }));
   } catch (err) {
-    console.log("Veri çekme hatası:", err);
+    console.log("Geçmiş veri hatası:", err);
   }
-
-  ws.on('message', async (message) => {
-    const dataStr = message.toString();
-    const [m, o] = dataStr.split(',').map(Number);
-
-    // Veritabanına Kaydet (Mühendislik Standartı)
-    try {
-      await pool.query("INSERT INTO maden_loglari (metan, oksijen) VALUES ($1, $2)", [m, o]);
-      
-      // Tüm frontend'lere canlı veriyi yay
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'LIVE', metan: m, oksijen: o }));
-        }
-      });
-    } catch (err) {
-      console.error("Kayıt Hatası:", err);
-    }
-  });
 });
 
-console.log('Backend 5000 portunda PostgreSQL ile yayında...');
+// 5. Sunucuyu Başlat (0.0.0.0 Dış Bağlantılar İçin Şart!)
+const server = app.listen(5000, '0.0.0.0', () => {
+  console.log('🚀 Backend 5000 portunda HER ŞEYE hazır!');
+});
 
-
-const generateRandomData = (min,max) => {
-  return parseFloat((Math.random() * (max-min) + min).toFixed(2));
-}
-
-
-
-const startSimulation = () => {
-  console.log("Simülasyon başlatıldı...");
-
-  setInterval(async () => {
-    const randomMethane =  generateRandomData(100,550);
-    const randomOxygen = generateRandomData(17,21);
-
-
-    if (randomMethane >450)
-    { console.log("⚠️ KRİTİK SEVİYE SİMÜLE EDİLİYOR!");   }
-
-
-
-
-    try {
-      await pool.query(
-        "INSERT INTO maden_loglari (metan,oksijen) VALUES ($1, $2)",
-        [randomMethane, randomOxygen]
-      );
-
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({
-            type: "LIVE",
-            metan: randomMethane,
-            oksijen: randomOxygen
-          }));
-        }
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  
-}, 3000);
-};
-
-startSimulation(); 
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
