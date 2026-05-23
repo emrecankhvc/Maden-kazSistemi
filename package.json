@@ -1,5 +1,15 @@
 {
+  "name": "maden-ikaz-sistemi",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "electron": "electron .",
+    "build": "npm run build --prefix frontend && electron ."
+  },
   "dependencies": {
     "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "electron": "^42.2.0"
   }
 }

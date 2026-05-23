@@ -1,103 +1,242 @@
-import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useState, useEffect } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import './App.css'
 
 function App() {
-  const [current, setCurrent] = useState({ methane: 0, oxygen: 21 });
-  const [history, setHistory] = useState([]); 
-  const [status, setStatus] = useState("Bağlanıyor...");
+  const [metan, setMetan] = useState(0)
+  const [oksijen, setOksijen] = useState(0)
+  const [durum, setDurum] = useState('NORMAL')
+  const [baglanti, setBaglanti] = useState(false)
+  const [gecmis, setGecmis] = useState([])
+  const [alarmlar, setAlarmlar] = useState([])
+  const [sonOlcum, setSonOlcum] = useState(null)
+  const [baslangic, setBaslangic] = useState(null)
+  const [istatistik, setIstatistik] = useState({ min: 0, max: 0, ort: 0 })
+  const [toplamAlarm, setToplamAlarm] = useState(0)
 
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:5000');
+    const ws = new WebSocket('ws://192.168.1.120:5000')
 
-    socket.onopen = () => setStatus("Sistem Aktif ✅");
-    socket.onclose = () => setStatus("Bağlantı Koptu ❌");
+    ws.onopen = () => {
+      setBaglanti(true)
+      setBaslangic(new Date())
+    }
 
-    socket.onmessage = (event) => {
-      // YENİ: Backend'den gelen JSON verisini ayrıştırıyoruz
-      const response = JSON.parse(event.data);
+    ws.onmessage = (event) => {
+      const veri = JSON.parse(event.data)
 
-      // DURUM 1: Sayfa ilk açıldığında Veritabanından gelen geçmiş veriler
-      if (response.type === 'HISTORY') {
-        const historyData = response.data.map(item => ({
-          // DB'den gelen 'zaman' bilgisini saat formatına çeviriyoruz
-          time: new Date(item.zaman).toLocaleTimeString().split(' ')[0],
-          methane: Number(item.metan),
-          oxygen: Number(item.oksijen)
-        }));
-        setHistory(historyData);
-      } 
-      
-      // DURUM 2: WebSocket King veya ESP32'den gelen canlı veri
-      else if (response.type === 'LIVE') {
-        const time = new Date().toLocaleTimeString().split(' ')[0];
-        
-        // Verileri sayıya çevirerek (Number) NaN hatasını engelliyoruz
-        const m = Number(response.metan);
-        const o = Number(response.oksijen);
+      if (veri.type === 'HISTORY') {
+        const formatli = veri.data.map(row => ({
+          zaman: new Date(row.zaman).toLocaleTimeString(),
+          metan: parseFloat(row.metan),
+          oksijen: parseFloat(row.oksijen)
+        }))
+        setGecmis(formatli)
 
-        setCurrent({ methane: m, oxygen: o });
+        // İstatistikleri hesapla
+        const metanlar = veri.data.map(r => parseFloat(r.metan))
+        setIstatistik({
+          min: Math.min(...metanlar).toFixed(0),
+          max: Math.max(...metanlar).toFixed(0),
+          ort: (metanlar.reduce((a, b) => a + b, 0) / metanlar.length).toFixed(0)
+        })
 
-        // Grafiğe yeni veriyi ekle, son 20 taneyi göster
-        setHistory(prev => [...prev, { time, methane: m, oxygen: o }].slice(-20));
+        // Geçmiş alarmları bul
+        const eskiAlarmlar = veri.data
+          .filter(row => parseFloat(row.metan) > 1000)
+          .map(row => ({
+            zaman: new Date(row.zaman).toLocaleTimeString(),
+            tarih: new Date(row.zaman).toLocaleDateString(),
+            metan: parseFloat(row.metan),
+            durum: parseFloat(row.metan) > 2000 ? 'tehlike' : 'uyari'
+          }))
+        setAlarmlar(eskiAlarmlar.slice(-10))
+        setToplamAlarm(eskiAlarmlar.length)
       }
-    };
 
-    return () => socket.close();
-  }, []);
+      if (veri.type === 'LIVE') {
+        setMetan(veri.metan)
+        setOksijen(veri.oksijen)
+        setDurum(veri.durum)
+        setSonOlcum(new Date())
 
-  const isMethaneDanger = current.methane > 400;
-  const isOxygenDanger = current.oxygen < 19;
-  const isSystemDanger = isMethaneDanger || isOxygenDanger;
+        setGecmis(prev => {
+          const yeni = [...prev, {
+            zaman: new Date().toLocaleTimeString(),
+            metan: veri.metan,
+            oksijen: veri.oksijen
+          }]
+          const yeniListe = yeni.slice(-20)
+
+          // İstatistik güncelle
+          const metanlar = yeniListe.map(r => r.metan)
+          setIstatistik({
+            min: Math.min(...metanlar).toFixed(0),
+            max: Math.max(...metanlar).toFixed(0),
+            ort: (metanlar.reduce((a, b) => a + b, 0) / metanlar.length).toFixed(0)
+          })
+
+          return yeniListe
+        })
+
+        if (veri.metan > 1000) {
+          setToplamAlarm(prev => prev + 1)
+          setAlarmlar(prev => {
+            const yeni = [...prev, {
+              zaman: new Date().toLocaleTimeString(),
+              tarih: new Date().toLocaleDateString(),
+              metan: veri.metan,
+              durum: veri.metan > 2000 ? 'tehlike' : 'uyari'
+            }]
+            return yeni.slice(-10)
+          })
+        }
+      }
+    }
+
+    ws.onclose = () => setBaglanti(false)
+    return () => ws.close()
+  }, [])
+
+  const durumClass = durum === 'TEHLİKE' ? 'tehlike' : durum === 'UYARI' ? 'uyari' : 'normal'
+
+  // Çalışma süresi hesapla
+  const calismaStr = () => {
+    if (!baslangic) return '--:--:--'
+    const fark = Math.floor((new Date() - baslangic) / 1000)
+    const s = Math.floor(fark / 3600).toString().padStart(2, '0')
+    const d = Math.floor((fark % 3600) / 60).toString().padStart(2, '0')
+    const sn = (fark % 60).toString().padStart(2, '0')
+    return `${s}:${d}:${sn}`
+  }
+
+  const [sure, setSure] = useState('00:00:00')
+  useEffect(() => {
+    const timer = setInterval(() => setSure(calismaStr()), 1000)
+    return () => clearInterval(timer)
+  }, [baslangic])
 
   return (
-    <div style={{ 
-      backgroundColor: isSystemDanger ? '#450a0a' : '#0f172a', 
-      color: 'white', minHeight: '100vh', padding: '20px', transition: 'all 0.5s' 
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <h2 style={{ letterSpacing: '2px' }}>MADEN ERKEN İKAZ SİSTEMİ (DB DESTEKLİ)</h2>
-          <div style={{ 
-            padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold',
-            backgroundColor: isSystemDanger ? '#ef4444' : '#22c55e' 
-          }}>
-            {status}
-          </div>
-        </header>
+    <div className="container">
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
-          
-          <div style={{ background: '#1e293b', padding: '25px', borderRadius: '15px', borderLeft: `8px solid ${isMethaneDanger ? '#ef4444' : '#f97316'}` }}>
-            <h4 style={{ margin: 0, color: '#94a3b8' }}>METAN (CH4)</h4>
-            <h1 style={{ fontSize: '48px', margin: '10px 0' }}>{current.methane} <small style={{fontSize: '18px'}}>ppm</small></h1>
-            {isMethaneDanger && <div style={{color: '#fca5a5', fontWeight: 'bold'}}>⚠️ KRİTİK SEVİYE!</div>}
-          </div>
+      {/* Header */}
+      <div className="header">
+        <h1>⛏ MADEN İKAZ SİSTEMİ</h1>
+        <div className={`baglanti ${baglanti ? 'bagli' : 'bagli-degil'}`}>
+          {baglanti ? '● CANLI' : '● BAĞLANTI YOK'}
+        </div>
+      </div>
 
-          <div style={{ background: '#1e293b', padding: '25px', borderRadius: '15px', borderLeft: `8px solid ${isOxygenDanger ? '#ef4444' : '#06b6d4'}` }}>
-            <h4 style={{ margin: 0, color: '#94a3b8' }}>OKSİJEN (O2)</h4>
-            <h1 style={{ fontSize: '48px', margin: '10px 0' }}>%{current.oxygen}</h1>
-            {isOxygenDanger && <div style={{color: '#fca5a5', fontWeight: 'bold'}}>⚠️ DÜŞÜK OKSİJEN!</div>}
-          </div>
+      {/* Ana Kartlar */}
+      <div className="kartlar">
+        <div className={`kart ${durumClass}`}>
+          <div className="kart-baslik">Metan Seviyesi</div>
+          <div className="kart-deger">{metan}</div>
+          <div className="kart-birim">PPM</div>
         </div>
 
-        <div style={{ background: '#1e293b', padding: '20px', borderRadius: '15px', height: '400px' }}>
-          <h3 style={{ marginBottom: '20px', color: '#94a3b8' }}>CANLI ANALİZ GRAFİĞİ</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={history}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="time" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px' }} />
-              <Line type="monotone" dataKey="methane" stroke="#f97316" strokeWidth={3} dot={true} isAnimationActive={true} />
-              <Line type="monotone" dataKey="oxygen" stroke="#06b6d4" strokeWidth={3} dot={true} isAnimationActive={true} />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="kart normal">
+          <div className="kart-baslik">Oksijen Seviyesi</div>
+          <div className="kart-deger">{oksijen}</div>
+          <div className="kart-birim">%</div>
+        </div>
+
+        <div className={`kart ${durumClass}`}>
+          <div className="kart-baslik">Durum</div>
+          <div className={`kart-deger durum-${durumClass}`} style={{fontSize: '28px'}}>
+            {durum === 'TEHLİKE' ? '⚠ TEHLİKE' : durum === 'UYARI' ? '⚡ UYARI' : '✓ NORMAL'}
+          </div>
+          <div className="kart-birim">
+            {durum === 'TEHLİKE' ? 'Derhal tahliye!' : durum === 'UYARI' ? 'Dikkat gerekli' : 'Güvenli ortam'}
+          </div>
+        </div>
+      </div>
+
+      {/* İstatistik Kartları */}
+      <div className="kartlar" style={{marginBottom: '16px'}}>
+        <div className="kart normal">
+          <div className="kart-baslik">Min Metan</div>
+          <div className="kart-deger" style={{fontSize: '32px'}}>{istatistik.min}</div>
+          <div className="kart-birim">PPM</div>
+        </div>
+
+        <div className="kart normal">
+          <div className="kart-baslik">Max Metan</div>
+          <div className="kart-deger" style={{fontSize: '32px'}}>{istatistik.max}</div>
+          <div className="kart-birim">PPM</div>
+        </div>
+
+        <div className="kart normal">
+          <div className="kart-baslik">Ortalama Metan</div>
+          <div className="kart-deger" style={{fontSize: '32px'}}>{istatistik.ort}</div>
+          <div className="kart-birim">PPM</div>
+        </div>
+      </div>
+
+      {/* Grafik */}
+      <div className="grafik-panel">
+        <div className="grafik-baslik">Metan Seviyesi — Son 20 Ölçüm</div>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={gecmis}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+            <XAxis dataKey="zaman" stroke="#555" tick={{fill: '#888', fontSize: 11}} />
+            <YAxis stroke="#555" tick={{fill: '#888', fontSize: 11}} />
+            <Tooltip
+              contentStyle={{background: '#111', border: '1px solid #333', borderRadius: '8px'}}
+              labelStyle={{color: '#888'}}
+            />
+            <Line type="monotone" dataKey="metan" stroke="#00ff88" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Alt Panel */}
+      <div className="alt-panel">
+
+        {/* Alarm Geçmişi */}
+        <div className="alarm-panel">
+          <div className="alarm-baslik">⚠ Alarm Geçmişi
+            <span style={{float: 'right', color: '#ff4444'}}>Toplam: {toplamAlarm}</span>
+          </div>
+          {alarmlar.length === 0 ? (
+            <p style={{color: '#555', fontSize: '14px'}}>Henüz alarm yok</p>
+          ) : (
+            <ul className="alarm-liste">
+              {alarmlar.map((alarm, index) => (
+                <li key={index} className={`alarm-item ${alarm.durum}`}>
+                  <span>{alarm.durum === 'tehlike' ? '🔴' : '🟡'} {alarm.metan} PPM</span>
+                  <span className="alarm-zaman">{alarm.tarih} {alarm.zaman}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Sensör Durumu + Son Ölçüm */}
+        <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+          <div className="son-olcum-panel">
+            <div className="son-olcum-label">Sensör Durumu</div>
+            <div className="son-olcum-zaman" style={{fontSize: '20px', color: baglanti ? '#00ff88' : '#ff4444'}}>
+              {baglanti ? '● AKTİF' : '● PASİF'}
+            </div>
+            <div className="son-olcum-tarih">Çalışma süresi: {sure}</div>
+          </div>
+
+          <div className="son-olcum-panel">
+            <div className="son-olcum-label">Son Ölçüm Zamanı</div>
+            <div className="son-olcum-zaman">
+              {sonOlcum ? sonOlcum.toLocaleTimeString() : '--:--:--'}
+            </div>
+            <div className="son-olcum-tarih">
+              {sonOlcum ? sonOlcum.toLocaleDateString('tr-TR', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) : 'Bekleniyor...'}
+            </div>
+          </div>
         </div>
 
       </div>
+
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
