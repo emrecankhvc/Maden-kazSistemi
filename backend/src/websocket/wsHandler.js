@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const { getRecentLogs } = require('../services/sensorService');
+const { getRecentLogs, getSimulatedSensors } = require('../services/sensorService');
 
 let wss;
 
@@ -20,6 +20,12 @@ const initWebSocket = (server) => {
       console.log('Dashboard bağlantısı kesildi.');
     });
   });
+
+  // Her 3 saniyede simüle sensör verisi gönder
+  setInterval(() => {
+    const simuleSensorler = getSimulatedSensors()
+    broadcast({ type: 'SIMULE', sensors: simuleSensorler })
+  }, 3000)
 
   server.on('upgrade', (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {

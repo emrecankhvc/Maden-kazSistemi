@@ -12,6 +12,8 @@
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "dxf-parser": "^1.1.2",
+    "dxf-writer": "^1.18.4",
     "express": "^5.2.1",
     "pg": "^8.20.0",
     "ws": "^8.20.0"

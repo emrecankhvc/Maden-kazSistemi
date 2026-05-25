@@ -11,43 +11,64 @@ body {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1300px;
   margin: 0 auto;
   padding: 24px;
 }
 
+/* HEADER */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   border-bottom: 1px solid #222;
   padding-bottom: 16px;
 }
 
 .header h1 {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  color: #ffffff;
   letter-spacing: 1px;
 }
 
-.baglanti {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #aaa;
-}
-
+.baglanti { font-size: 13px; }
 .baglanti.bagli { color: #00ff88; }
 .baglanti.bagli-degil { color: #ff4444; }
 
+/* TAB NAVİGASYON */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: #111;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid #222;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #888;
+  border: none;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.tab:hover { color: #fff; background: #1a1a1a; }
+.tab.aktif { background: #1a2a1a; color: #00ff88; border: 1px solid #00ff8833; }
+
+/* KARTLAR */
 .kartlar {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .kart {
@@ -57,12 +78,12 @@ body {
   padding: 24px;
 }
 
-.kart.normal { border-left: 4px solid #00ff88; }
-.kart.uyari  { border-left: 4px solid #ffcc00; }
+.kart.normal  { border-left: 4px solid #00ff88; }
+.kart.uyari   { border-left: 4px solid #ffcc00; }
 .kart.tehlike { border-left: 4px solid #ff4444; }
 
 .kart-baslik {
-  font-size: 12px;
+  font-size: 11px;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -72,14 +93,9 @@ body {
 .kart-deger {
   font-size: 42px;
   font-weight: 700;
-  color: #ffffff;
 }
 
-.kart-birim {
-  font-size: 14px;
-  color: #888;
-  margin-top: 4px;
-}
+.kart-birim { font-size: 13px; color: #888; margin-top: 4px; }
 
 .durum-normal  { color: #00ff88; }
 .durum-uyari   { color: #ffcc00; }
@@ -90,21 +106,24 @@ body {
   50%       { opacity: 0.3; }
 }
 
+/* GRAFİK */
 .grafik-panel {
   background: #111;
   border: 1px solid #222;
   border-radius: 12px;
   padding: 24px;
+  margin-bottom: 16px;
 }
 
 .grafik-baslik {
-  font-size: 14px;
+  font-size: 12px;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
+/* ALT PANEL */
 .alt-panel {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -112,6 +131,7 @@ body {
   margin-top: 16px;
 }
 
+/* ALARM */
 .alarm-panel {
   background: #111;
   border: 1px solid #222;
@@ -120,21 +140,14 @@ body {
 }
 
 .alarm-baslik {
-  font-size: 14px;
+  font-size: 12px;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 16px;
 }
 
-.alarm-liste {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-}
+.alarm-liste { list-style: none; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
 
 .alarm-item {
   display: flex;
@@ -145,11 +158,11 @@ body {
   font-size: 13px;
 }
 
-.alarm-item.uyari  { background: #1a1500; border-left: 3px solid #ffcc00; }
+.alarm-item.uyari   { background: #1a1500; border-left: 3px solid #ffcc00; }
 .alarm-item.tehlike { background: #1a0000; border-left: 3px solid #ff4444; }
+.alarm-zaman { color: #888; font-size: 11px; }
 
-.alarm-zaman { color: #888; font-size: 12px; }
-
+/* SON ÖLÇÜM */
 .son-olcum-panel {
   background: #111;
   border: 1px solid #222;
@@ -162,20 +175,119 @@ body {
   gap: 8px;
 }
 
-.son-olcum-label {
+.son-olcum-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.son-olcum-zaman { font-size: 28px; font-weight: 700; }
+.son-olcum-tarih { font-size: 13px; color: #555; }
+
+/* HARİTA */
+.harita-panel {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.harita-baslik {
   font-size: 12px;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 1px;
+  margin-bottom: 16px;
 }
 
-.son-olcum-zaman {
-  font-size: 32px;
-  font-weight: 700;
+.harita-kontrol {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.harita-btn {
+  padding: 6px 14px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.harita-btn:hover { background: #222; color: #fff; }
+.harita-btn.aktif { background: #1a2a1a; color: #00ff88; border-color: #00ff8833; }
+
+.sensor-label { fill: #ffffff; font-size: 9px; font-family: 'Segoe UI', sans-serif; }
+.sensor-deger { fill: #aaaaaa; font-size: 8px; font-family: 'Segoe UI', sans-serif; }
+.galeri-label { fill: #555; font-size: 9px; font-family: 'Segoe UI', sans-serif; }
+
+/* İSTATİSTİK */
+.istatistik-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.istatistik-kart {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.istatistik-baslik { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+.istatistik-deger { font-size: 36px; font-weight: 700; color: #00ff88; }
+.istatistik-birim { font-size: 13px; color: #888; margin-top: 4px; }
+
+.tahliye-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255, 0, 0, 0.15);
+  z-index: 999;
+  pointer-events: none;
+  animation: yanip-sone 1s infinite;
+}
+
+.tahliye-banner {
+  background: #ff0000;
   color: #ffffff;
+  text-align: center;
+  padding: 16px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  animation: yanip-sone 1s infinite;
 }
 
-.son-olcum-tarih {
-  font-size: 14px;
-  color: #555;
+.tahliye-btn {
+  background: #ff0000;
+  color: #ffffff;
+  border: none;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.tahliye-btn:hover {
+  background: #cc0000;
+  transform: scale(1.02);
+}
+
+.tahliye-sifirla-btn {
+  background: transparent;
+  color: #888;
+  border: 1px solid #333;
+  padding: 8px 16px;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 8px;
+  width: 100%;
 }

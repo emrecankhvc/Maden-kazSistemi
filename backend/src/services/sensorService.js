@@ -7,7 +7,7 @@ const saveSensorData = async (metan, oksijen) => {
     throw new Error('Metan ve oksijen değerleri zorunlu!');
   }
 
-  if (metan < 0 || metan > 10000) {
+  if (metan < 0 || metan > 50000) {
     throw new Error('Metan değeri geçersiz!');
   }
 
@@ -38,4 +38,12 @@ const getRecentLogs = async (limit = 20) => {
   return result.rows.reverse();
 };
 
-module.exports = { saveSensorData, getRecentLogs };
+const getSimulatedSensors = () => {
+  return [
+    { id: 2, konum: 'Galeri 2', metan: Math.floor(Math.random() * 400) + 200, oksijen: 21 },
+    { id: 3, konum: 'Galeri 3', metan: Math.floor(Math.random() * 400) + 200, oksijen: 21 },
+    { id: 4, konum: 'Ana Giris', metan: Math.floor(Math.random() * 300) + 150, oksijen: 21 },
+  ]
+}
+
+module.exports = { saveSensorData, getRecentLogs, getSimulatedSensors }

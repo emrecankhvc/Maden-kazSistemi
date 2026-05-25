@@ -20,4 +20,19 @@ router.post('/data', apiKeyAuth, async (req, res) => {
   }
 });
 
+router.post('/tahliye', apiKeyAuth, async (req, res) => {
+  try {
+    await pool.query(
+      "INSERT INTO maden_loglari (metan, oksijen) VALUES ($1, $2)",
+      [99999, 0]
+    );
+    const { broadcast } = require('../../index');
+    broadcast({ type: 'TAHLİYE', zaman: new Date() });
+    res.status(200).json({ mesaj: 'Tahliye başlatıldı!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 module.exports = router;
